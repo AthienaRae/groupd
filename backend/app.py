@@ -1,21 +1,18 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from azure.cosmos import CosmosClient, exceptions
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-client = CosmosClient(
-    url=os.getenv("COSMOS_ENDPOINT"),
-    credential=os.getenv("COSMOS_KEY")
-)
-db = client.get_database_client(os.getenv("COSMOS_DATABASE"))
-users = db.get_container_client("users")
-teams = db.get_container_client("teams")
+def get_containers():
+    from azure.cosmos import CosmosClient
+    client = CosmosClient(
+        url=os.environ["COSMOS_ENDPOINT"],
+        credential=os.environ["COSMOS_KEY"]
+    )
+    db = client.get_database_client(os.environ["COSMOS_DATABASE"])
+    return db.get_container_client("users"), db.get_container_client("teams")
 
 @app.route("/api/health")
 def health():
@@ -23,6 +20,7 @@ def health():
 
 @app.route("/api/users", methods=["POST"])
 def create_user():
+    users, _ = get_containers()
     data = request.json
     if not data.get("userId"):
         return jsonify({"error": "userId required"}), 400
@@ -42,6 +40,8 @@ def create_user():
 
 @app.route("/api/users/<user_id>", methods=["GET"])
 def get_user(user_id):
+    from azure.cosmos import exceptions
+    users, _ = get_containers()
     try:
         item = users.read_item(item=user_id, partition_key=user_id)
         return jsonify(item)
@@ -50,6 +50,7 @@ def get_user(user_id):
 
 @app.route("/api/teams", methods=["GET"])
 def get_teams():
+    _, teams = get_containers()
     items = list(teams.query_items(
         query="SELECT * FROM c",
         enable_cross_partition_query=True
@@ -58,6 +59,7 @@ def get_teams():
 
 @app.route("/api/teams", methods=["POST"])
 def create_team():
+    _, teams = get_containers()
     data = request.json
     if not data.get("teamId"):
         return jsonify({"error": "teamId required"}), 400
@@ -77,6 +79,8 @@ def create_team():
 
 @app.route("/api/teams/<team_id>", methods=["GET"])
 def get_team(team_id):
+    from azure.cosmos import exceptions
+    _, teams = get_containers()
     try:
         item = teams.read_item(item=team_id, partition_key=team_id)
         return jsonify(item)
