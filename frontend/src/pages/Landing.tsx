@@ -42,23 +42,40 @@ export default function Landing() {
           ))}
         </div>
       </div>
-      <div style={{ padding: '48px 32px 0' }}>
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#F2C4CD', letterSpacing: 1, textTransform: 'uppercase', opacity: 0.65, marginBottom: 16 }}>
+
+      <div style={{ padding: '48px 32px 40px' }}>
+        <div style={{ fontSize: 11, fontWeight: 500, color: '#F2C4CD', letterSpacing: 1, textTransform: 'uppercase', opacity: 0.65, marginBottom: 20 }}>
           What Groupd does
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
           {[
-            { title: 'Semantic matching', desc: 'Azure OpenAI embeds your profile and finds teammates with complementary skills, not just keyword matches.' },
-            { title: 'Team listings', desc: 'Browse open teams by project type, tech stack, or availability. Post your own and let members find you.' },
-            { title: 'Smart profiles', desc: 'Add your skills and interests. Groupd builds a semantic profile that improves your match quality over time.' },
+            {
+              title: 'Semantic matching',
+              desc: 'Azure OpenAI embeds your profile and finds teammates with complementary skills, not just keyword matches.',
+              icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6" stroke="#F2C4CD" strokeWidth="1.4"/><path d="M9 6v3.5l2.5 1.5" stroke="#F2C4CD" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            },
+            {
+              title: 'Team listings',
+              desc: 'Browse open teams by project type, tech stack, or availability. Post your own and let members find you.',
+              icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="4" width="14" height="10" rx="2" stroke="#F2C4CD" strokeWidth="1.4"/><path d="M5 9h8M5 12h5" stroke="#F2C4CD" strokeWidth="1.2" strokeLinecap="round"/></svg>
+            },
+            {
+              title: 'Smart profiles',
+              desc: 'Add your skills and interests. Groupd builds a semantic profile that improves your match quality over time.',
+              icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="7" cy="6" r="3" stroke="#F2C4CD" strokeWidth="1.4"/><path d="M2 15c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="#F2C4CD" strokeWidth="1.4" strokeLinecap="round"/><path d="M13 8a3 3 0 0 1 0 6" stroke="#F2C4CD" strokeWidth="1.2" strokeLinecap="round"/></svg>
+            },
           ].map(f => (
             <div key={f.title} style={{
               background: 'rgba(242,196,205,0.05)', border: '0.5px solid rgba(242,196,205,0.13)',
-              borderRadius: 12, padding: 20
+              borderRadius: 12, padding: 24
             }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(242,196,205,0.1)', marginBottom: 14 }} />
-              <h3 style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>{f.title}</h3>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.42)', lineHeight: 1.6 }}>{f.desc}</p>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: 'rgba(242,196,205,0.1)', border: '0.5px solid rgba(242,196,205,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16
+              }}>{f.icon}</div>
+              <h3 style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.42)', lineHeight: 1.7 }}>{f.desc}</p>
             </div>
           ))}
         </div>
