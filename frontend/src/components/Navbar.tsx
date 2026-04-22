@@ -1,6 +1,16 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { logout } from '../api/auth'
 
 export default function Navbar() {
+  const navigate = useNavigate()
+  const token = localStorage.getItem('token')
+  const user = JSON.parse(localStorage.getItem('user') || 'null')
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
   return (
     <nav style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -24,10 +34,37 @@ export default function Navbar() {
             <div style={{ position: 'absolute', top: -3, right: -3, width: 8, height: 8, borderRadius: '50%', background: '#F2C4CD' }} />
           </div>
         </Link>
-        <Link to="/dashboard" style={{
-          background: '#F2C4CD', color: '#051F45', border: 'none',
-          padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 500, textDecoration: 'none'
-        }}>Dashboard</Link>
+
+        {token ? (
+          <>
+            <Link to="/dashboard" style={{
+              background: '#F2C4CD', color: '#051F45', border: 'none',
+              padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 500, textDecoration: 'none'
+            }}>Dashboard</Link>
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'transparent',
+                border: '0.5px solid rgba(242,196,205,0.3)',
+                color: 'rgba(255,255,255,0.5)',
+                padding: '8px 16px',
+                borderRadius: 8,
+                fontSize: 14,
+                cursor: 'pointer'
+              }}
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login" style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Login</Link>
+            <Link to="/register" style={{
+              background: '#F2C4CD', color: '#051F45', border: 'none',
+              padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 500, textDecoration: 'none'
+            }}>Register</Link>
+          </>
+        )}
       </div>
     </nav>
   )
