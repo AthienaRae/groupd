@@ -4,7 +4,6 @@ import { logout } from '../api/auth'
 export default function Navbar() {
   const navigate = useNavigate()
   const token = localStorage.getItem('token')
-  const user = JSON.parse(localStorage.getItem('user') || 'null')
 
   const handleLogout = () => {
     logout()
