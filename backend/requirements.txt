@@ -4,4 +4,5 @@ azure-cosmos
 python-dotenv
 gunicorn
 PyJWT
-werkzeug# cache bust Tue Apr 28 17:26:03 UTC 2026
+werkzeug
+bcrypt
