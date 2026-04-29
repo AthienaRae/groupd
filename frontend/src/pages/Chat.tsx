@@ -1,27 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import { getConversation, sendMessage } from '../api/messages'
+import { getUser } from '../api/users'
 
-const USERS: Record<string, any> = {
-  'user-1': { id: 'user-1', name: 'Arun Krishnan', dept: 'Computer Science' },
-  'user-2': { id: 'user-2', name: 'Karthik Raja', dept: 'ECE' },
-  'user-3': { id: 'user-3', name: 'Meera Pillai', dept: 'ECE' },
+interface Message {
+  id: string
+  senderId: string
+  receiverId: string
+  content: string
+  timestamp: string
+  read: boolean
 }
 
-const INITIAL_MESSAGES: Record<string, any[]> = {
-  'user-1': [
-    { id: 1, from: 'them', text: 'Hey! I saw your profile on Groupd.', time: '10:30 AM' },
-    { id: 2, from: 'them', text: 'Are you interested in joining the AI Health Monitor project?', time: '10:31 AM' },
-    { id: 3, from: 'me', text: 'Hi! Yes, I saw the listing. It looks really interesting.', time: '10:45 AM' },
-    { id: 4, from: 'me', text: 'What kind of work would I be doing?', time: '10:45 AM' },
-    { id: 5, from: 'them', text: 'Mainly the React frontend and Azure integration. Your profile is a great match!', time: '10:50 AM' },
-  ],
-  'user-2': [
-    { id: 1, from: 'them', text: 'Sure, let me know when you want to meet up and discuss.', time: 'Yesterday' },
-  ],
-  'user-3': [
-    { id: 1, from: 'them', text: 'I checked your profile, your Azure skills would be perfect for our team!', time: '2 days ago' },
-  ],
+interface OtherUser {
+  userId: string
+  name: string
+  department: string
 }
 
 function Initials({ name }: { name: string }) {
@@ -36,27 +31,90 @@ function Initials({ name }: { name: string }) {
   )
 }
 
-export default function Chat() {
-  const { userId } = useParams()
-  const nav = useNavigate()
-  const user = USERS[userId || '']
-  const [messages, setMessages] = useState(INITIAL_MESSAGES[userId || ''] || [])
-  const [input, setInput] = useState('')
+function formatTime(ts: string): string {
+  if (!ts) return ''
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
 
-  const send = () => {
-    if (!input.trim()) return
-    setMessages(prev => [...prev, {
-      id: prev.length + 1, from: 'me', text: input.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }])
+export default function Chat() {
+  const { userId } = useParams<{ userId: string }>()
+  const nav = useNavigate()
+  const myId = JSON.parse(localStorage.getItem('user') || '{}').id || ''| ''
+
+  const [otherUser, setOtherUser] = useState<OtherUser | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Load user info + conversation
+  useEffect(() => {
+    if (!userId) return
+    Promise.all([
+      getUser(userId),
+      getConversation(userId)
+    ])
+      .then(([userRes, msgRes]) => {
+        setOtherUser({
+          userId: userRes.data.userId,
+          name: userRes.data.name,
+          department: userRes.data.department
+        })
+        setMessages(msgRes.data)
+      })
+      .catch(() => setError('Failed to load conversation'))
+      .finally(() => setLoading(false))
+  }, [userId])
+
+  // Poll for new messages every 5 seconds
+  useEffect(() => {
+    if (!userId) return
+    const interval = setInterval(() => {
+      getConversation(userId)
+        .then(res => setMessages(res.data))
+        .catch(() => {})
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [userId])
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const send = async () => {
+    if (!input.trim() || !userId || sending) return
+    setSending(true)
+    const content = input.trim()
     setInput('')
+    try {
+      const res = await sendMessage(userId, content)
+      setMessages(prev => [...prev, res.data])
+    } catch {
+      setError('Failed to send message')
+      setInput(content) // restore input on failure
+    } finally {
+      setSending(false)
+    }
   }
 
-  if (!user) return (
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#051F45' }}>
+      <Navbar />
+      <p style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '48px 0' }}>Loading...</p>
+    </div>
+  )
+
+  if (error || !otherUser) return (
     <div style={{ minHeight: '100vh', background: '#051F45' }}>
       <Navbar />
       <div style={{ padding: '48px 32px' }}>
-        <p style={{ color: 'rgba(255,255,255,0.5)' }}>User not found.</p>
+        <p style={{ color: '#F2C4CD' }}>{error || 'User not found.'}</p>
+        <button onClick={() => nav('/messages')} style={{ marginTop: 16, background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '0.5px solid rgba(242,196,205,0.2)', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}>
+          ← Back to Messages
+        </button>
       </div>
     </div>
   )
@@ -74,13 +132,13 @@ export default function Chat() {
           background: 'transparent', color: 'rgba(255,255,255,0.4)', border: 'none',
           fontSize: 13, cursor: 'pointer', padding: 0
         }}>←</button>
-        <Initials name={user.name} />
+        <Initials name={otherUser.name} />
         <div>
-          <div style={{ fontSize: 15, fontWeight: 500 }}>{user.name}</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{user.dept}</div>
+          <div style={{ fontSize: 15, fontWeight: 500 }}>{otherUser.name}</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{otherUser.department}</div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button onClick={() => nav(`/profile/${user.id}`)} style={{
+        <div style={{ marginLeft: 'auto' }}>
+          <button onClick={() => nav(`/profile/${otherUser.userId}`)} style={{
             background: 'transparent', color: 'rgba(255,255,255,0.5)',
             border: '0.5px solid rgba(242,196,205,0.2)',
             padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer'
@@ -94,21 +152,32 @@ export default function Chat() {
         display: 'flex', flexDirection: 'column', gap: 12,
         maxWidth: 720, width: '100%', margin: '0 auto'
       }}>
-        {messages.map(m => (
-          <div key={m.id} style={{
-            display: 'flex', flexDirection: 'column',
-            alignItems: m.from === 'me' ? 'flex-end' : 'flex-start'
-          }}>
-            <div style={{
-              maxWidth: '70%', padding: '10px 14px', borderRadius: 12,
-              background: m.from === 'me' ? '#F2C4CD' : 'rgba(242,196,205,0.08)',
-              color: m.from === 'me' ? '#051F45' : 'rgba(255,255,255,0.85)',
-              border: m.from === 'me' ? 'none' : '0.5px solid rgba(242,196,205,0.15)',
-              fontSize: 14, lineHeight: 1.5
-            }}>{m.text}</div>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 4 }}>{m.time}</span>
-          </div>
-        ))}
+        {messages.length === 0 && (
+          <p style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', paddingTop: 48 }}>
+            No messages yet. Say hi! 👋
+          </p>
+        )}
+        {messages.map(m => {
+          const isMe = m.senderId === myId
+          return (
+            <div key={m.id} style={{
+              display: 'flex', flexDirection: 'column',
+              alignItems: isMe ? 'flex-end' : 'flex-start'
+            }}>
+              <div style={{
+                maxWidth: '70%', padding: '10px 14px', borderRadius: 12,
+                background: isMe ? '#F2C4CD' : 'rgba(242,196,205,0.08)',
+                color: isMe ? '#051F45' : 'rgba(255,255,255,0.85)',
+                border: isMe ? 'none' : '0.5px solid rgba(242,196,205,0.15)',
+                fontSize: 14, lineHeight: 1.5
+              }}>{m.content}</div>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 4 }}>
+                {formatTime(m.timestamp)}
+              </span>
+            </div>
+          )
+        })}
+        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
@@ -121,18 +190,27 @@ export default function Chat() {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && send()}
           placeholder="Type a message..."
+          disabled={sending}
           style={{
             flex: 1, background: 'rgba(242,196,205,0.05)',
             border: '0.5px solid rgba(242,196,205,0.2)',
             borderRadius: 8, padding: '10px 14px', fontSize: 14,
-            color: '#fff', outline: 'none'
+            color: '#fff', outline: 'none',
+            opacity: sending ? 0.6 : 1
           }}
         />
-        <button onClick={send} style={{
-          background: '#F2C4CD', color: '#051F45', border: 'none',
-          padding: '10px 20px', borderRadius: 8, fontSize: 14,
-          fontWeight: 500, cursor: 'pointer'
-        }}>Send</button>
+        <button
+          onClick={send}
+          disabled={sending}
+          style={{
+            background: '#F2C4CD', color: '#051F45', border: 'none',
+            padding: '10px 20px', borderRadius: 8, fontSize: 14,
+            fontWeight: 500, cursor: sending ? 'not-allowed' : 'pointer',
+            opacity: sending ? 0.6 : 1
+          }}
+        >
+          {sending ? '...' : 'Send'}
+        </button>
       </div>
     </div>
   )
