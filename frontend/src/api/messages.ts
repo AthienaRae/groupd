@@ -1,6 +1,10 @@
-import api from './axiosInstance';
+import axios from 'axios'
 
-export const getConversations = () => api.get('/api/messages/conversations');
-export const getConversation = (userId: string) => api.get(`/api/messages/conversation/${userId}`);
+const BASE_URL = process.env.REACT_APP_API_URL || 'https://groupdbackend.mangocoast-8ddfce7d.southeastasia.azurecontainerapps.io'
+
+const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` })
+
+export const getConversations = () => axios.get(`${BASE_URL}/api/messages/conversations`, { headers: getAuthHeader() })
+export const getConversation = (userId: string) => axios.get(`${BASE_URL}/api/messages/conversation/${userId}`, { headers: getAuthHeader() })
 export const sendMessage = (receiverId: string, content: string) =>
-  api.post('/api/messages/send', { receiver_id: receiverId, content });
+  axios.post(`${BASE_URL}/api/messages/send`, { receiver_id: receiverId, content }, { headers: getAuthHeader() })
