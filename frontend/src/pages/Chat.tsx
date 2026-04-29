@@ -39,7 +39,7 @@ function formatTime(ts: string): string {
 export default function Chat() {
   const { userId } = useParams<{ userId: string }>()
   const nav = useNavigate()
-  const myId = JSON.parse(localStorage.getItem('user') || '{}').id || ''| ''
+  const myId = JSON.parse(localStorage.getItem('user') || '{}').id || ''
 
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -49,7 +49,6 @@ export default function Chat() {
   const [error, setError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Load user info + conversation
   useEffect(() => {
     if (!userId) return
     Promise.all([
@@ -58,28 +57,26 @@ export default function Chat() {
     ])
       .then(([userRes, msgRes]) => {
         setOtherUser({
-          userId: userRes.data.userId,
-          name: userRes.data.name,
-          department: userRes.data.department
+          userId: userRes.userId,
+          name: userRes.name,
+          department: userRes.department
         })
-        setMessages(msgRes.data)
+        setMessages(msgRes)
       })
       .catch(() => setError('Failed to load conversation'))
       .finally(() => setLoading(false))
   }, [userId])
 
-  // Poll for new messages every 5 seconds
   useEffect(() => {
     if (!userId) return
     const interval = setInterval(() => {
       getConversation(userId)
-        .then(res => setMessages(res.data))
+        .then(res => setMessages(res))
         .catch(() => {})
     }, 5000)
     return () => clearInterval(interval)
   }, [userId])
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -91,10 +88,10 @@ export default function Chat() {
     setInput('')
     try {
       const res = await sendMessage(userId, content)
-      setMessages(prev => [...prev, res.data])
+      setMessages(prev => [...prev, res])
     } catch {
       setError('Failed to send message')
-      setInput(content) // restore input on failure
+      setInput(content)
     } finally {
       setSending(false)
     }
@@ -123,7 +120,6 @@ export default function Chat() {
     <div style={{ minHeight: '100vh', background: '#051F45', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
 
-      {/* Chat header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14, padding: '16px 32px',
         borderBottom: '0.5px solid rgba(242,196,205,0.15)'
@@ -146,7 +142,6 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Messages */}
       <div style={{
         flex: 1, overflowY: 'auto', padding: '24px 32px',
         display: 'flex', flexDirection: 'column', gap: 12,
@@ -180,7 +175,6 @@ export default function Chat() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div style={{
         padding: '16px 32px', borderTop: '0.5px solid rgba(242,196,205,0.15)',
         display: 'flex', gap: 10, maxWidth: 720, width: '100%', margin: '0 auto'
