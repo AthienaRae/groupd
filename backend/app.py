@@ -529,3 +529,106 @@ def get_conversations():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
+
+
+# ── AI Match Service ──────────────────────────────────────────────────────────
+
+def generate_embedding(text: str) -> list:
+    from openai import OpenAI
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    response = client.embeddings.create(
+        model="text-embedding-ada-002",
+        input=text
+    )
+    return response.data[0].embedding
+
+
+def build_profile_text(user: dict) -> str:
+    skills = ", ".join(user.get("skills", []))
+    return f"{user.get('name', '')} studies {user.get('department', '')}. Skills: {skills}. {user.get('about', '')} Available: {user.get('availability', '')}"
+
+
+def upsert_user_to_search(user: dict):
+    from azure.search.documents import SearchClient
+    from azure.core.credentials import AzureKeyCredential
+    endpoint = os.environ.get("AZURE_SEARCH_ENDPOINT")
+    key = os.environ.get("AZURE_SEARCH_KEY")
+    if not endpoint or not key:
+        return
+    client = SearchClient(endpoint=endpoint, index_name="users", credential=AzureKeyCredential(key))
+    profile_text = build_profile_text(user)
+    embedding = generate_embedding(profile_text)
+    doc = {
+        "id": user["userId"],
+        "name": user.get("name", ""),
+        "department": user.get("department", ""),
+        "about": user.get("about", ""),
+        "skills": user.get("skills", []),
+        "availability": user.get("availability", ""),
+        "embedding": embedding
+    }
+    client.upload_documents(documents=[doc])
+
+
+@app.route("/api/match/ai", methods=["GET"])
+@token_required
+def get_ai_matches():
+    from azure.search.documents import SearchClient
+    from azure.search.documents.models import VectorizedQuery
+    from azure.core.credentials import AzureKeyCredential
+    from azure.cosmos import exceptions
+
+    users, _, __, ___ = get_containers()
+    try:
+        current_user = users.read_item(item=request.user_id, partition_key=request.user_id)
+    except exceptions.CosmosResourceNotFoundError:
+        return jsonify({"error": "User not found"}), 404
+
+    profile_text = build_profile_text(current_user)
+    query_embedding = generate_embedding(profile_text)
+
+    endpoint = os.environ.get("AZURE_SEARCH_ENDPOINT")
+    key = os.environ.get("AZURE_SEARCH_KEY")
+    search_client = SearchClient(endpoint=endpoint, index_name="users", credential=AzureKeyCredential(key))
+
+    vector_query = VectorizedQuery(
+        vector=query_embedding,
+        k_nearest_neighbors=10,
+        fields="embedding"
+    )
+
+    results = search_client.search(
+        search_text=None,
+        vector_queries=[vector_query],
+        select=["id", "name", "department", "skills", "about", "availability"]
+    )
+
+    matches = []
+    for r in results:
+        if r["id"] == request.user_id:
+            continue
+        matches.append({
+            "id": r["id"],
+            "name": r.get("name", ""),
+            "department": r.get("department", ""),
+            "skills": r.get("skills", []),
+            "about": r.get("about", ""),
+            "availability": r.get("availability", ""),
+            "match": round(r["@search.score"] * 100, 1)
+        })
+
+    return jsonify(matches)
+
+
+@app.route("/api/match/index", methods=["POST"])
+@token_required
+def index_user():
+    from azure.cosmos import exceptions
+    users, _, __, ___ = get_containers()
+    try:
+        user = users.read_item(item=request.user_id, partition_key=request.user_id)
+    except exceptions.CosmosResourceNotFoundError:
+        return jsonify({"error": "User not found"}), 404
+    upsert_user_to_search(user)
+    return jsonify({"status": "indexed"})
+

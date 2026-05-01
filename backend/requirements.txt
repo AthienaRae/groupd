@@ -6,3 +6,5 @@ gunicorn
 PyJWT
 werkzeug
 bcrypt
+openai
+azure-search-documents
