@@ -1,19 +1,17 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import axios from 'axios'
+import { getTeams } from '../api/teams'
 
-const RECENT_MATCHES = [
-  { name: 'Arun Krishnan', dept: 'Computer Science', match: 94, skills: ['Python', 'ML/AI'] },
-  { name: 'Priya Selvam', dept: 'Information Technology', match: 89, skills: ['React', 'UI/UX'] },
-  { name: 'Karthik Raja', dept: 'ECE', match: 82, skills: ['Kotlin', 'Azure'] },
-]
-
-const RECENT_TEAMS = [
-  { name: 'AI Health Monitor', type: 'Hackathon', slots: 2 },
-  { name: 'Campus Food Finder', type: 'Course Project', slots: 1 },
-]
+const BASE_URL = process.env.REACT_APP_API_URL || 'https://groupdbackend.mangocoast-8ddfce7d.southeastasia.azurecontainerapps.io'
+const getAuthHeader = () => {
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 function Initials({ name }: { name: string }) {
-  const init = name.split(' ').map(p => p[0]).join('').slice(0, 2)
+  const init = name.split(' ').map((p: string) => p[0]).join('').slice(0, 2)
   return (
     <div style={{
       width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
@@ -26,6 +24,28 @@ function Initials({ name }: { name: string }) {
 
 export default function Dashboard() {
   const nav = useNavigate()
+  const [matches, setMatches] = useState<any[]>([])
+  const [teams, setTeams] = useState<any[]>([])
+  const [connections, setConnections] = useState<any[]>([])
+  const [userName, setUserName] = useState('')
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    if (!user.id) { nav('/login'); return }
+    setUserName(user.name || '')
+
+    axios.get(`${BASE_URL}/api/match`, { headers: getAuthHeader() })
+      .then(res => setMatches(res.data.slice(0, 3)))
+      .catch(() => {})
+
+    getTeams()
+      .then(data => setTeams(data.slice(0, 2)))
+      .catch(() => {})
+
+    axios.get(`${BASE_URL}/api/connections`, { headers: getAuthHeader() })
+      .then(res => setConnections(res.data.connected || []))
+      .catch(() => {})
+  }, [nav])
 
   return (
     <div style={{ minHeight: '100vh', background: '#051F45' }}>
@@ -34,16 +54,16 @@ export default function Dashboard() {
 
         <div style={{ marginBottom: 40 }}>
           <p style={{ fontSize: 11, fontWeight: 500, color: '#F2C4CD', letterSpacing: 1, textTransform: 'uppercase', opacity: 0.65, marginBottom: 10 }}>Welcome back</p>
-          <h2 style={{ fontSize: 32, fontWeight: 500, letterSpacing: -1 }}>Your dashboard</h2>
+          <h2 style={{ fontSize: 32, fontWeight: 500, letterSpacing: -1 }}>{userName || 'Your dashboard'}</h2>
         </div>
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 40 }}>
           {[
-            { label: 'Profile strength', value: '72%' },
-            { label: 'Total matches', value: '4' },
-            { label: 'Teams applied', value: '2' },
-            { label: 'Connections', value: '1' },
+            { label: 'Total matches', value: matches.length || '—' },
+            { label: 'Open teams', value: teams.length || '—' },
+            { label: 'Connections', value: connections.length || '—' },
+            { label: 'Profile', value: 'Active' },
           ].map(s => (
             <div key={s.label} style={{
               background: 'rgba(242,196,205,0.05)', border: '0.5px solid rgba(242,196,205,0.13)',
@@ -69,20 +89,24 @@ export default function Dashboard() {
                 fontSize: 13, cursor: 'pointer', opacity: 0.7
               }}>View all →</button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {RECENT_MATCHES.map(m => (
-                <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <Initials name={m.name} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 14, fontWeight: 500 }}>{m.name}</span>
-                      <span style={{ fontSize: 13, color: '#F2C4CD', fontWeight: 500 }}>{m.match}%</span>
+            {matches.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>No matches yet. Complete your profile!</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {matches.map(m => (
+                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Initials name={m.name} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 14, fontWeight: 500 }}>{m.name}</span>
+                        <span style={{ fontSize: 13, color: '#F2C4CD', fontWeight: 500 }}>{m.match}%</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{m.department}</div>
                     </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{m.dept}</div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Teams + Quick actions */}
@@ -98,25 +122,29 @@ export default function Dashboard() {
                   fontSize: 13, cursor: 'pointer', opacity: 0.7
                 }}>View all →</button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {RECENT_TEAMS.map(t => (
-                  <div key={t.name} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '10px 14px', background: 'rgba(242,196,205,0.05)',
-                    border: '0.5px solid rgba(242,196,205,0.1)', borderRadius: 8
-                  }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{t.name}</div>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{t.type}</div>
+              {teams.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>No teams yet.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {teams.map(t => (
+                    <div key={t.id} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 14px', background: 'rgba(242,196,205,0.05)',
+                      border: '0.5px solid rgba(242,196,205,0.1)', borderRadius: 8
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{t.name}</div>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{t.type}</div>
+                      </div>
+                      <span style={{
+                        fontSize: 12, padding: '3px 10px', borderRadius: 20,
+                        background: 'rgba(242,196,205,0.1)', color: '#F2C4CD',
+                        border: '0.5px solid rgba(242,196,205,0.2)'
+                      }}>{t.slots} open</span>
                     </div>
-                    <span style={{
-                      fontSize: 12, padding: '3px 10px', borderRadius: 20,
-                      background: 'rgba(242,196,205,0.1)', color: '#F2C4CD',
-                      border: '0.5px solid rgba(242,196,205,0.2)'
-                    }}>{t.slots} open</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Quick actions */}
@@ -141,7 +169,6 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>
