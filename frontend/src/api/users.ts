@@ -18,14 +18,14 @@ export interface User {
 }
 
 export const getUser = async (userId: string): Promise<User> => {
-  const res = await axios.get(`${BASE_URL}/users/${userId}`, {
+  const res = await axios.get(`${BASE_URL}/api/users/${userId}`, {
     headers: getAuthHeader()
   })
   return res.data
 }
 
 export const updateUser = async (userId: string, data: Partial<User>): Promise<User> => {
-  const res = await axios.put(`${BASE_URL}/users/${userId}`, data, {
+  const res = await axios.put(`${BASE_URL}/api/users/${userId}`, data, {
     headers: getAuthHeader()
   })
   return res.data

@@ -632,3 +632,31 @@ def index_user():
     upsert_user_to_search(user)
     return jsonify({"status": "indexed"})
 
+
+
+@app.route("/api/teams/<team_id>/join", methods=["POST"])
+@token_required
+def join_team(team_id):
+    from azure.cosmos import exceptions
+    users, teams, _, notifications = get_containers()
+    try:
+        team = teams.read_item(item=team_id, partition_key=team_id)
+        user = users.read_item(item=request.user_id, partition_key=request.user_id)
+    except exceptions.CosmosResourceNotFoundError:
+        return jsonify({"error": "Team or user not found"}), 404
+    if request.user_id in team.get("members", []):
+        return jsonify({"error": "Already a member"}), 409
+    if team.get("slots", 0) <= 0:
+        return jsonify({"error": "No slots available"}), 400
+    team.setdefault("members", []).append(request.user_id)
+    team["slots"] = team.get("slots", 1) - 1
+    teams.upsert_item(body=team)
+    push_notification(
+        notifications,
+        user_id=team.get("leadId", ""),
+        notif_type="join_request",
+        title="New Join Request",
+        body=f"{user.get('name', 'Someone')} wants to join {team.get('name', 'your team')}",
+        ref_id=team_id
+    )
+    return jsonify({"status": "joined"})

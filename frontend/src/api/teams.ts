@@ -5,34 +5,41 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'https://groupdbackend.mangoco
 
 export interface Team {
   id: string
+  teamId: string
   name: string
   description: string
+  type: string
   skills: string[]
   members: string[]
-  created_by: string
+  slots: number
+  leadId: string
 }
 
 export interface CreateTeamPayload {
+  teamId: string
   name: string
   description: string
+  type: string
   skills: string[]
+  slots: number
+  leadId: string
 }
 
 export const getTeams = async (): Promise<Team[]> => {
-  const res = await axios.get(`${BASE_URL}/teams`, { headers: getAuthHeader() })
+  const res = await axios.get(`${BASE_URL}/api/teams`, { headers: getAuthHeader() })
   return res.data
 }
 
 export const getTeamById = async (id: string): Promise<Team> => {
-  const res = await axios.get(`${BASE_URL}/teams/${id}`, { headers: getAuthHeader() })
+  const res = await axios.get(`${BASE_URL}/api/teams/${id}`, { headers: getAuthHeader() })
   return res.data
 }
 
 export const createTeam = async (payload: CreateTeamPayload): Promise<Team> => {
-  const res = await axios.post(`${BASE_URL}/teams`, payload, { headers: getAuthHeader() })
+  const res = await axios.post(`${BASE_URL}/api/teams`, payload, { headers: getAuthHeader() })
   return res.data
 }
 
 export const joinTeam = async (teamId: string): Promise<void> => {
-  await axios.post(`${BASE_URL}/teams/${teamId}/join`, {}, { headers: getAuthHeader() })
+  await axios.post(`${BASE_URL}/api/teams/${teamId}/join`, {}, { headers: getAuthHeader() })
 }

@@ -1,12 +1,14 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import axios from 'axios'
 
-const CONNECTIONS = [
-  { id: 'user-1', name: 'Arun Krishnan', dept: 'Computer Science', skills: ['Python', 'ML/AI', 'Flask'], status: 'connected', lastActive: '2h ago' },
-  { id: 'user-2', name: 'Karthik Raja', dept: 'ECE', skills: ['Kotlin', 'Java', 'Azure'], status: 'connected', lastActive: '1d ago' },
-  { id: 'user-3', name: 'Meera Pillai', dept: 'ECE', skills: ['Python', 'Azure', 'Computer Vision'], status: 'pending', lastActive: '3h ago' },
-  { id: 'user-4', name: 'Divya Nair', dept: 'Computer Science', skills: ['Docker', 'Azure', 'SQL'], status: 'pending', lastActive: '5h ago' },
-]
+const BASE_URL = process.env.REACT_APP_API_URL || 'https://groupdbackend.mangocoast-8ddfce7d.southeastasia.azurecontainerapps.io'
+
+const getAuthHeader = () => {
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 function Initials({ name }: { name: string }) {
   const init = name.split(' ').map((p: string) => p[0]).join('')
@@ -22,8 +24,55 @@ function Initials({ name }: { name: string }) {
 
 export default function Connections() {
   const nav = useNavigate()
-  const connected = CONNECTIONS.filter(c => c.status === 'connected')
-  const pending = CONNECTIONS.filter(c => c.status === 'pending')
+  const [connected, setConnected] = useState<any[]>([])
+  const [pending, setPending] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const fetchConnections = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/api/connections`, { headers: getAuthHeader() })
+      setConnected(res.data.connected || [])
+      setPending(res.data.pending || [])
+    } catch {
+      setError('Failed to load connections.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    if (!user.id) { nav('/login'); return }
+    fetchConnections()
+  }, [nav])
+
+  const handleAccept = async (userId: string) => {
+    try {
+      await axios.post(`${BASE_URL}/api/connections/${userId}/accept`, {}, { headers: getAuthHeader() })
+      fetchConnections()
+    } catch {
+      setError('Failed to accept connection.')
+    }
+  }
+
+  const handleDecline = async (userId: string) => {
+    try {
+      await axios.post(`${BASE_URL}/api/connections/${userId}/decline`, {}, { headers: getAuthHeader() })
+      fetchConnections()
+    } catch {
+      setError('Failed to decline connection.')
+    }
+  }
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#051F45' }}>
+      <Navbar />
+      <div style={{ padding: '48px 32px' }}>
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Loading connections...</p>
+      </div>
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: '#051F45' }}>
@@ -35,12 +84,17 @@ export default function Connections() {
           <h2 style={{ fontSize: 32, fontWeight: 500, letterSpacing: -1 }}>Your connections</h2>
         </div>
 
-        {/* Stats */}
+        {error && (
+          <div style={{ background: 'rgba(242,196,205,0.1)', border: '0.5px solid rgba(242,196,205,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, color: '#F2C4CD', fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 40 }}>
           {[
             { label: 'Connected', value: connected.length },
             { label: 'Pending', value: pending.length },
-            { label: 'Matches', value: 4 },
+            { label: 'Matches', value: '—' },
           ].map(s => (
             <div key={s.label} style={{
               background: 'rgba(242,196,205,0.05)', border: '0.5px solid rgba(242,196,205,0.13)',
@@ -52,7 +106,6 @@ export default function Connections() {
           ))}
         </div>
 
-        {/* Pending requests */}
         {pending.length > 0 && (
           <div style={{ marginBottom: 40 }}>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 16, letterSpacing: 0.5 }}>Pending requests</p>
@@ -66,15 +119,15 @@ export default function Connections() {
                   <Initials name={c.name} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 3 }}>{c.name}</div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{c.dept}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{c.department}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button style={{
+                    <button onClick={() => handleDecline(c.id)} style={{
                       background: 'transparent', color: 'rgba(255,255,255,0.5)',
                       border: '0.5px solid rgba(242,196,205,0.2)',
                       padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer'
                     }}>Decline</button>
-                    <button style={{
+                    <button onClick={() => handleAccept(c.id)} style={{
                       background: '#F2C4CD', color: '#051F45', border: 'none',
                       padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer'
                     }}>Accept</button>
@@ -85,47 +138,48 @@ export default function Connections() {
           </div>
         )}
 
-        {/* Connected */}
         <div>
           <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 16, letterSpacing: 0.5 }}>Connected</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {connected.map(c => (
-              <div key={c.id} style={{
-                background: 'rgba(242,196,205,0.05)', border: '0.5px solid rgba(242,196,205,0.13)',
-                borderRadius: 12, padding: '16px 20px',
-                display: 'flex', alignItems: 'center', gap: 14
-              }}>
-                <Initials name={c.name} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 3 }}>{c.name}</div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    {c.skills.map(s => (
-                      <span key={s} style={{
-                        fontSize: 11, padding: '2px 8px', borderRadius: 20,
-                        background: 'rgba(242,196,205,0.08)', color: 'rgba(255,255,255,0.5)',
-                        border: '0.5px solid rgba(242,196,205,0.12)'
-                      }}>{s}</span>
-                    ))}
+          {connected.length === 0 ? (
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>No connections yet. Start matching to connect with people!</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {connected.map(c => (
+                <div key={c.id} style={{
+                  background: 'rgba(242,196,205,0.05)', border: '0.5px solid rgba(242,196,205,0.13)',
+                  borderRadius: 12, padding: '16px 20px',
+                  display: 'flex', alignItems: 'center', gap: 14
+                }}>
+                  <Initials name={c.name} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 3 }}>{c.name}</div>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                      {(c.skills || []).map((s: string) => (
+                        <span key={s} style={{
+                          fontSize: 11, padding: '2px 8px', borderRadius: 20,
+                          background: 'rgba(242,196,205,0.08)', color: 'rgba(255,255,255,0.5)',
+                          border: '0.5px solid rgba(242,196,205,0.12)'
+                        }}>{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => nav(`/chat/${c.id}`)} style={{
+                      background: 'transparent', color: '#F2C4CD',
+                      border: '0.5px solid rgba(242,196,205,0.3)',
+                      padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer'
+                    }}>Message</button>
+                    <button onClick={() => nav(`/profile/${c.id}`)} style={{
+                      background: 'transparent', color: 'rgba(255,255,255,0.5)',
+                      border: '0.5px solid rgba(242,196,205,0.15)',
+                      padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer'
+                    }}>Profile</button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{c.lastActive}</span>
-                  <button onClick={() => nav(`/chat/${c.id}`)} style={{
-                    background: 'transparent', color: '#F2C4CD',
-                    border: '0.5px solid rgba(242,196,205,0.3)',
-                    padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer'
-                  }}>Message</button>
-                  <button onClick={() => nav(`/profile/${c.id}`)} style={{
-                    background: 'transparent', color: 'rgba(255,255,255,0.5)',
-                    border: '0.5px solid rgba(242,196,205,0.15)',
-                    padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer'
-                  }}>Profile</button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-
       </div>
     </div>
   )

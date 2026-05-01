@@ -19,7 +19,7 @@ export default function Login() {
       localStorage.setItem('user', JSON.stringify(data.user))
       navigate('/dashboard')
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid credentials. Please try again.')
+      setError(err.response?.data?.error || 'Invalid credentials. Please try again.')
     } finally {
       setLoading(false)
     }
