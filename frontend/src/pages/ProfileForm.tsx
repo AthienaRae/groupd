@@ -17,9 +17,9 @@ export default function ProfileForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
 
   useEffect(() => {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
     if (!currentUser.id) { nav('/login'); return }
     setLoading(true)
     getUser(currentUser.id)
@@ -33,11 +33,12 @@ export default function ProfileForm() {
       })
       .catch(() => setError('Failed to load profile.'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [nav])
 
   const toggle = (s: string) => setSelected(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s])
 
   const handleSave = async () => {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
     setSaving(true)
     setError('')
     setSuccess(false)
