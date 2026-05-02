@@ -15,6 +15,8 @@ export interface User {
   availability?: string
   about?: string
   skills?: string[]
+  avatar_url?: string
+  resume_url?: string
 }
 
 export const getUser = async (userId: string): Promise<User> => {
