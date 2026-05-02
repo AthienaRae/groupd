@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import { getUser, updateUser } from '../api/users'
+import FileUpload from '../components/FileUpload'
 
 const SKILLS = ['React', 'Python', 'Flask', 'Node.js', 'ML/AI', 'UI/UX', 'Azure', 'MongoDB', 'Docker', 'Java', 'Kotlin', 'SQL']
 
@@ -17,6 +18,8 @@ export default function ProfileForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [resumeUrl, setResumeUrl] = useState('')
 
   useEffect(() => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
@@ -30,6 +33,9 @@ export default function ProfileForm() {
         setAvailability(u.availability || 'Flexible')
         setAbout(u.about || '')
         setSelected(u.skills || [])
+        //setSelected(u.skills || [])
+        setAvatarUrl(u.avatar_url || '')
+        setResumeUrl(u.resume_url || '')
       })
       .catch(() => setError('Failed to load profile.'))
       .finally(() => setLoading(false))
@@ -43,7 +49,7 @@ export default function ProfileForm() {
     setError('')
     setSuccess(false)
     try {
-      await updateUser(currentUser.id, { name, department, availability, about, skills: selected })
+      await updateUser(currentUser.id, { name, department, availability, about, skills: selected, avatar_url: avatarUrl, resume_url: resumeUrl })
       localStorage.setItem('user', JSON.stringify({ ...currentUser, name }))
       setSuccess(true)
       setTimeout(() => nav('/dashboard'), 1200)
@@ -110,6 +116,33 @@ export default function ProfileForm() {
             <option>Flexible</option>
           </select>
         </div>
+        <div style={{ marginBottom: 24 }}>
+  <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Profile Picture</label>
+  <FileUpload
+    uploadType="avatar"
+    userId={JSON.parse(localStorage.getItem('user') || '{}').id || 'anonymous'}
+    hint="PNG, JPG, WEBP · Max 10MB"
+    onUploadSuccess={(url) => setAvatarUrl(url)}
+    onUploadError={(err) => setError(err)}
+  />
+  {avatarUrl && (
+    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 6 }}>✓ Avatar uploaded</p>
+  )}
+</div>
+
+<div style={{ marginBottom: 24 }}>
+  <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Resume / CV</label>
+  <FileUpload
+    uploadType="resume"
+    userId={JSON.parse(localStorage.getItem('user') || '{}').id || 'anonymous'}
+    hint="PDF, DOC, DOCX · Max 10MB"
+    onUploadSuccess={(url) => setResumeUrl(url)}
+    onUploadError={(err) => setError(err)}
+  />
+  {resumeUrl && (
+    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 6 }}>✓ Resume uploaded</p>
+  )}
+</div>
 
         <div style={{ marginBottom: 32 }}>
           <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>Skills</label>

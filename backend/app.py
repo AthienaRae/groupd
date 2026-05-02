@@ -6,9 +6,11 @@ import jwt
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from upload_routes import upload_bp
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False)
+app.register_blueprint(upload_bp)
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "groupd-secret-key")
 
@@ -126,11 +128,12 @@ def create_user():
     if not data.get("userId"):
         return jsonify({"error": "userId required"}), 400
     doc = {
-        "id": data["userId"], "userId": data["userId"],
-        "name": data.get("name", ""), "email": data.get("email", ""),
-        "department": data.get("department", ""), "skills": data.get("skills", []),
-        "availability": data.get("availability", ""), "about": data.get("about", ""), "embedding": None
-    }
+    "id": data["teamId"], "teamId": data["teamId"],
+    "name": data.get("name", ""), "description": data.get("description", ""),
+    "type": data.get("type", ""), "skills": data.get("skills", []),
+    "slots": data.get("slots", 1), "leadId": data.get("leadId", ""),
+    "cover_url": data.get("cover_url", ""), "members": []
+}
     users.upsert_item(body=doc)
     return jsonify({"status": "created", "id": doc["id"]}), 201
 
@@ -159,9 +162,9 @@ def update_user(user_id):
     except exceptions.CosmosResourceNotFoundError:
         return jsonify({"error": "User not found"}), 404
     data = request.json
-    for field in ["name", "department", "skills", "availability", "about"]:
-        if field in data:
-            item[field] = data[field]
+    for field in ["name", "department", "skills", "availability", "about", "avatar_url", "resume_url"]:
+    if field in data:
+        item[field] = data[field]
     users.upsert_item(body=item)
     return jsonify(item)
 

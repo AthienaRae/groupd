@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import { createTeam } from '../api/teams'
+import FileUpload from '../components/FileUpload'
 
 const SKILLS = ['React', 'Python', 'Flask', 'Node.js', 'ML/AI', 'UI/UX', 'Azure', 'MongoDB', 'Docker', 'Java', 'Kotlin', 'SQL', 'Unity']
 
@@ -14,6 +15,7 @@ export default function CreateTeam() {
   const [selected, setSelected] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [teamCoverUrl, setTeamCoverUrl] = useState('')
 
   const toggle = (s: string) => setSelected(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s])
 
@@ -26,14 +28,15 @@ export default function CreateTeam() {
     try {
       const teamId = crypto.randomUUID()
       await createTeam({
-        teamId,
-        name: name.trim(),
-        description: description.trim(),
-        type,
-        skills: selected,
-        slots,
-        leadId: currentUser.id
-      } as any)
+          teamId,
+          name: name.trim(),
+          description: description.trim(),
+          type,
+          skills: selected,
+          slots,
+          leadId: currentUser.id,
+          cover_url: teamCoverUrl
+    } as any)
       nav('/teams')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create team.')
@@ -94,6 +97,17 @@ export default function CreateTeam() {
             ))}
           </div>
         </div>
+
+        <div style={{ marginBottom: 24 }}>
+  <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Team Cover Image</label>
+  <FileUpload
+    uploadType="team_cover"
+    userId={JSON.parse(localStorage.getItem('user') || '{}').id || 'anonymous'}
+    hint="PNG, JPG, WEBP · Max 10MB"
+    onUploadSuccess={(url) => setTeamCoverUrl(url)}
+    onUploadError={(err) => setError(err)}
+  />
+</div>
 
         <div style={{ marginBottom: 32 }}>
           <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Project description</label>

@@ -8,3 +8,4 @@ werkzeug
 bcrypt
 openai
 azure-search-documents
+azure-storage-blob==12.19.0
